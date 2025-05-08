@@ -31,7 +31,7 @@ The output TSV file includes:
 ## Testing
 
 This project includes a comprehensive `pytest` test suite in `tests.py`. To run tests:
-
+pytest test.py
 
 ### Covered Test Cases
 
