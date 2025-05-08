@@ -1,24 +1,7 @@
-# Kmer Analysis
-
-## Overview
-
-This Python script processes a file containing DNA sequences and counts the frequency of all k-mers (substrings of length `k`) and the frequency of each nucleotide that follows them. It then outputs the results to a formatted tab-separated values (TSV) file.
-
-## Features
-
-* Reads DNA sequences from a FASTA or plain text file
-* Allows user-specified `k` for k-mer length
-* Outputs frequency of each k-mer and its immediate following nucleotides (A, C, G, T)
-* Designed to skip invalid characters (e.g., N, X) in sequence data
-* Fully tested with `pytest`, including edge cases
-
-## Usage
-
-### Command-line
 
 # Kmer Analysis
 
-## Overview
+## Introduction
 
 This Python script processes a file containing DNA sequences and counts the frequency of all k-mers (substrings of length `k`) and the frequency of each nucleotide that follows them. It then outputs the results to a formatted tab-separated values (TSV) file.
 
