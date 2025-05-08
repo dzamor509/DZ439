@@ -3,57 +3,21 @@ from pathlib import Path
 import pytest
 import sys
 
-# If parse_args is in a separate file, update the import below accordingly
-from kmer_analysis import parse_args  # <- adjust if module name is different
-
-# Define the functions to test
-def read_sequences(input_file):
-    sequence = []
-    with open(input_file, 'r') as f:
-        for line in f:
-            line = line.strip()
-            if not line or line.startswith('>'):
-                continue
-            sequence.append(line.upper())
-    return ''.join(sequence)
-
-def get_kmers(sequence, k):
-    if len(sequence) < k:
-        return {}
-    kmer_dict = {}
-    for i in range(len(sequence) - k):
-        kmer = sequence[i:i+k]
-        next_char = sequence[i+k]
-        if set(kmer + next_char).issubset({'A', 'C', 'G', 'T'}):
-            if kmer not in kmer_dict:
-                kmer_dict[kmer] = Counter()
-            kmer_dict[kmer][next_char] += 1
-    last_kmer = sequence[-k:]
-    if set(last_kmer).issubset({'A', 'C', 'G', 'T'}):
-        if last_kmer not in kmer_dict:
-            kmer_dict[last_kmer] = Counter()
-    return kmer_dict
-
-def write_output(kmer_dict, output_file):
-    with open(output_file, 'w') as f:
-        header = ['k-mer', 'total_count', 'A', 'C', 'G', 'T']
-        f.write('\t'.join(header) + '\n')
-        for kmer in sorted(kmer_dict.keys()):
-            counter = kmer_dict[kmer]
-            total = sum(counter.values())
-            row = [kmer, str(total)] + [str(counter.get(nuc, 0)) for nuc in 'ACGT']
-            f.write('\t'.join(row) + '\n')
+# Adjust import if your main script has a different name
+from kmer_analysis import parse_args, read_sequences, get_kmers, write_output
 
 # ------------------------------
-#             TESTS
+#            TESTS
 # ------------------------------
 
+#  Test: Basic FASTA-style input parsing, skipping headers and joining lines
 def test_read_sequences(tmp_path):
     test_file = tmp_path / "sample.fa"
     test_file.write_text(">header\nACGT\nTGCA\n")
     result = read_sequences(str(test_file))
     assert result == "ACGTTGCA"
 
+#  Test: Valid sequence with k=2, ensures correct k-mers and following nucleotides
 def test_get_kmers_valid():
     sequence = "AATGC"
     k = 2
@@ -62,10 +26,11 @@ def test_get_kmers_valid():
         "AA": Counter({"T": 1}),
         "AT": Counter({"G": 1}),
         "TG": Counter({"C": 1}),
-        "GC": Counter()
+        "GC": Counter()  # Last k-mer with no following nucleotide
     }
     assert dict(result) == expected
 
+#  Test: Handles invalid characters by skipping affected k-mers
 def test_get_kmers_invalid_characters():
     sequence = "AACNXGT"
     k = 2
@@ -74,8 +39,9 @@ def test_get_kmers_invalid_characters():
     assert "GT" in result
     assert "CN" not in result
     assert "NX" not in result
-    assert "AC" not in result
+    assert "AC" not in result  # AC followed by 'N' is invalid
 
+#  Test: Output formatting correctness for TSV file
 def test_write_output(tmp_path):
     kmer_data = {
         "AA": Counter({"T": 2, "G": 1}),
@@ -90,6 +56,7 @@ def test_write_output(tmp_path):
     assert contents[2] == "AC\t1\t0\t1\t0\t0"
     assert contents[3] == "GT\t0\t0\t0\t0\t0"
 
+#  Test: Argument parsing logic via simulated command line input
 def test_argument_parsing(monkeypatch):
     test_args = ["kmer_analysis.py", "-i", "input.fa", "-o", "output.tsv", "-k", "4"]
     monkeypatch.setattr(sys, "argv", test_args)
@@ -99,9 +66,10 @@ def test_argument_parsing(monkeypatch):
     assert args.size == 4
 
 # ------------------------------
-#      ADDITIONAL EDGE CASES
+#      EDGE CASE TESTING
 # ------------------------------
 
+#  Test: k = 1; ensures nucleotide transitions are counted correctly
 def test_k_equals_one():
     sequence = "ATCGAT"
     result = get_kmers(sequence, 1)
@@ -109,26 +77,30 @@ def test_k_equals_one():
     assert result["T"]["C"] == 1
     assert result["C"]["G"] == 1
     assert result["G"]["A"] == 1
-    assert "T" in result  # final 'T' is still present
+    assert "T" in result  # Final nucleotide still stored with empty context
 
+#  Test: k equals length of sequence; final k-mer should exist, no next character
 def test_k_equals_sequence_length():
     sequence = "ACGT"
     k = 4
     result = get_kmers(sequence, k)
     assert dict(result) == {"ACGT": Counter()}
 
+#  Test: k > sequence length; function should return empty dict
 def test_k_greater_than_sequence_length():
     sequence = "ACGT"
     k = 5
     result = get_kmers(sequence, k)
     assert dict(result) == {}
 
+#  Test: Empty sequence; should return empty k-mer dictionary
 def test_empty_sequence():
     sequence = ""
     k = 3
     result = get_kmers(sequence, k)
     assert dict(result) == {}
 
+#  Test: Repeated characters; verifies frequency accumulation for same k-mer
 def test_repeated_character_sequence():
     sequence = "AAAAAA"
     k = 2
@@ -136,6 +108,7 @@ def test_repeated_character_sequence():
     assert result["AA"]["A"] == 4
     assert sum(result["AA"].values()) == 4
 
+#  Test: Sequence input with empty lines; ensures those lines are ignored
 def test_input_with_empty_lines(tmp_path):
     test_file = tmp_path / "seq.fa"
     test_file.write_text("ACGT\n\nTGCA\n\n")
