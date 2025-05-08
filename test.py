@@ -1,6 +1,4 @@
-# test_kmer_analysis.py
-
-from collections import defaultdict, Counter
+from collections import Counter
 from pathlib import Path
 import pytest
 import sys
@@ -21,12 +19,14 @@ def read_sequences(input_file):
 
 def get_kmers(sequence, k):
     if len(sequence) < k:
-        return defaultdict(Counter)
-    kmer_dict = defaultdict(Counter)
+        return {}
+    kmer_dict = {}
     for i in range(len(sequence) - k):
         kmer = sequence[i:i+k]
         next_char = sequence[i+k]
         if set(kmer + next_char).issubset({'A', 'C', 'G', 'T'}):
+            if kmer not in kmer_dict:
+                kmer_dict[kmer] = Counter()
             kmer_dict[kmer][next_char] += 1
     last_kmer = sequence[-k:]
     if set(last_kmer).issubset({'A', 'C', 'G', 'T'}):
@@ -38,7 +38,8 @@ def write_output(kmer_dict, output_file):
     with open(output_file, 'w') as f:
         header = ['k-mer', 'total_count', 'A', 'C', 'G', 'T']
         f.write('\t'.join(header) + '\n')
-        for kmer, counter in sorted(kmer_dict.items()):
+        for kmer in sorted(kmer_dict.keys()):
+            counter = kmer_dict[kmer]
             total = sum(counter.values())
             row = [kmer, str(total)] + [str(counter.get(nuc, 0)) for nuc in 'ACGT']
             f.write('\t'.join(row) + '\n')
@@ -61,11 +62,9 @@ def test_get_kmers_valid():
         "AA": Counter({"T": 1}),
         "AT": Counter({"G": 1}),
         "TG": Counter({"C": 1}),
+        "GC": Counter()
     }
-    for kmer in expected:
-        assert result[kmer] == expected[kmer]
-    assert "GC" in result
-    assert result["GC"] == Counter()
+    assert dict(result) == expected
 
 def test_get_kmers_invalid_characters():
     sequence = "AACNXGT"
@@ -87,9 +86,9 @@ def test_write_output(tmp_path):
     write_output(kmer_data, str(output_file))
     contents = output_file.read_text().strip().splitlines()
     assert contents[0] == "k-mer\ttotal_count\tA\tC\tG\tT"
-    assert "AA\t3\t0\t0\t1\t2" in contents
-    assert "AC\t1\t0\t1\t0\t0" in contents
-    assert "GT\t0\t0\t0\t0\t0" in contents
+    assert contents[1] == "AA\t3\t0\t0\t1\t2"
+    assert contents[2] == "AC\t1\t0\t1\t0\t0"
+    assert contents[3] == "GT\t0\t0\t0\t0\t0"
 
 def test_argument_parsing(monkeypatch):
     test_args = ["kmer_analysis.py", "-i", "input.fa", "-o", "output.tsv", "-k", "4"]
@@ -110,25 +109,25 @@ def test_k_equals_one():
     assert result["T"]["C"] == 1
     assert result["C"]["G"] == 1
     assert result["G"]["A"] == 1
-    assert "T" in result  # final k-mer
+    assert "T" in result  # final 'T' is still present
 
 def test_k_equals_sequence_length():
     sequence = "ACGT"
     k = 4
     result = get_kmers(sequence, k)
-    assert result == {"ACGT": Counter()}
+    assert dict(result) == {"ACGT": Counter()}
 
 def test_k_greater_than_sequence_length():
     sequence = "ACGT"
     k = 5
     result = get_kmers(sequence, k)
-    assert result == {}
+    assert dict(result) == {}
 
 def test_empty_sequence():
     sequence = ""
     k = 3
     result = get_kmers(sequence, k)
-    assert result == {}
+    assert dict(result) == {}
 
 def test_repeated_character_sequence():
     sequence = "AAAAAA"
