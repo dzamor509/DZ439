@@ -34,6 +34,10 @@ def get_kmers(sequence, k):
     Returns:
         dict: A defaultdict of Counters. Each k-mer maps to a Counter of A/C/G/T that follow it.
     """
+    # Return empty dictionary if sequence is too short
+    if len(sequence) < k:
+        return {}
+
     kmer_dict = defaultdict(Counter)
 
     # Slide through the sequence to extract k-mers and their next base
@@ -44,9 +48,9 @@ def get_kmers(sequence, k):
         if set(kmer + next_char).issubset({'A', 'C', 'G', 'T'}):
             kmer_dict[kmer][next_char] += 1
 
-    # Include final k-mer if it has no following character, so it's not lost
+    # Include final k-mer if it's valid and has length k
     last_kmer = sequence[-k:]
-    if set(last_kmer).issubset({'A', 'C', 'G', 'T'}):
+    if len(last_kmer) == k and set(last_kmer).issubset({'A', 'C', 'G', 'T'}):
         if last_kmer not in kmer_dict:
             kmer_dict[last_kmer] = Counter()
 
